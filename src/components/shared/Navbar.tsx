@@ -3,11 +3,140 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Sparkles, LayoutDashboard, Settings, LogOut } from "lucide-react";
+import {
+  Menu,
+  X,
+  Sparkles,
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  ChevronDown,
+} from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import UserDropdown from "./UserDropdown";
 import { toast } from "sonner";
+
+interface AuthUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: "customer" | "vendor" | "admin" | string;
+}
+
+function UserDropdown({ user }: { user?: AuthUser | null }) {
+  const router = useRouter();
+
+  if (!user) return null;
+
+  const role = user.role || "customer";
+  const dashboardRoute = `/dashboard/${role}`;
+  const profileSettingsRoute = `/dashboard/${role}/profile`;
+
+  const handleLogout = async () => {
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Signed out successfully");
+            router.push("/");
+            router.refresh();
+          },
+        },
+      });
+    } catch {
+      toast.error("Failed to sign out. Please try again.");
+    }
+  };
+
+  const initials = user.name
+    ? user.name
+        .trim()
+        .split(/\s+/)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "WP";
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
+        type="button"
+        className="flex items-center gap-2.5 rounded-full border border-[#E6DCD2] bg-white/80 py-1 pl-1.5 pr-3 transition hover:border-[#C59B47] focus:outline-none"
+      >
+        <span className="flex items-center gap-2.5">
+          <Avatar className="h-8 w-8 border border-[#C59B47]/40">
+            <AvatarImage
+              src={user.image || undefined}
+              alt={user.name || "User"}
+            />
+            <AvatarFallback className="bg-[#5E1929] text-xs font-medium text-[#FAF7F2]">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <span className="hidden max-w-[120px] truncate text-sm font-medium text-[#1F1A1D] sm:inline-block">
+            {user.name || "Member"}
+          </span>
+          <ChevronDown className="h-4 w-4 text-[#6B5E62]" />
+        </span>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="z-50 w-56 border-[#E6DCD2] bg-[#FAF7F2] text-[#1F1A1D] shadow-lg"
+      >
+        <div className="px-2.5 py-2">
+          <p className="text-sm font-semibold leading-none text-[#1F1A1D]">
+            {user.name || "Member"}
+          </p>
+          <p className="mt-1 truncate text-xs text-[#6B5E62]">
+            {user.email || ""}
+          </p>
+          <span className="mt-1.5 inline-block w-fit rounded-full bg-[#F2E2E4] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#5E1929]">
+            {role}
+          </span>
+        </div>
+
+        <DropdownMenuSeparator className="bg-[#E6DCD2]" />
+
+        <DropdownMenuItem
+          onClick={() => router.push(dashboardRoute)}
+          className="cursor-pointer focus:bg-[#F2E2E4]/60"
+        >
+          <LayoutDashboard className="mr-2 h-4 w-4 text-[#5E1929]" />
+          <span>Dashboard</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() => router.push(profileSettingsRoute)}
+          className="cursor-pointer focus:bg-[#F2E2E4]/60"
+        >
+          <Settings className="mr-2 h-4 w-4 text-[#5E1929]" />
+          <span>Profile Settings</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator className="bg-[#E6DCD2]" />
+
+        <DropdownMenuItem
+          onClick={handleLogout}
+          className="cursor-pointer text-red-700 focus:bg-red-50 focus:text-red-800"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Logout</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -15,14 +144,7 @@ export default function Navbar() {
   const router = useRouter();
 
   const { data: session, isPending } = useSession();
-  const user = session?.user as
-    | {
-        name?: string | null;
-        email?: string | null;
-        image?: string | null;
-        role?: string;
-      }
-    | undefined;
+  const user = session?.user as AuthUser | undefined;
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -34,35 +156,31 @@ export default function Navbar() {
     return pathname.startsWith(href);
   };
 
-  const getDashboardRoute = () => {
-    if (user?.role === "admin") return "/dashboard/admin";
-    if (user?.role === "vendor") return "/dashboard/vendor";
-    return "/dashboard/customer";
-  };
-
-  const getProfileSettingsRoute = () => {
-    if (user?.role === "vendor") return "/dashboard/vendor/profile";
-    if (user?.role === "admin") return "/dashboard/admin";
-    return "/dashboard/customer/profile";
-  };
+  const role = user?.role || "customer";
+  const dashboardRoute = `/dashboard/${role}`;
+  const profileSettingsRoute = `/dashboard/${role}/profile`;
 
   const handleMobileLogout = async () => {
-    await signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          setMobileMenuOpen(false);
-          toast.success("Signed out successfully");
-          router.push("/");
-          router.refresh();
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            setMobileMenuOpen(false);
+            toast.success("Signed out successfully");
+            router.push("/");
+            router.refresh();
+          },
         },
-      },
-    });
+      });
+    } catch {
+      toast.error("Failed to sign out. Please try again.");
+    }
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[#E6DCD2] bg-[#FAF7F2]/90 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="group flex items-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5E1929] text-[#C59B47] shadow-sm transition-transform group-hover:scale-105">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -78,7 +196,7 @@ export default function Navbar() {
               href={link.href}
               className={`relative py-1 text-sm font-medium transition-colors ${
                 isActive(link.href)
-                  ? "text-[#5E1929] font-semibold"
+                  ? "font-semibold text-[#5E1929]"
                   : "text-[#6B5E62] hover:text-[#5E1929]"
               }`}
             >
@@ -158,12 +276,12 @@ export default function Navbar() {
               <div className="space-y-2">
                 <div className="px-3 py-1">
                   <p className="text-sm font-semibold text-[#1F1A1D]">
-                    {user.name}
+                    {user.name || "Member"}
                   </p>
-                  <p className="text-xs text-[#6B5E62]">{user.email}</p>
+                  <p className="text-xs text-[#6B5E62]">{user.email || ""}</p>
                 </div>
                 <Link
-                  href={getDashboardRoute()}
+                  href={dashboardRoute}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#1F1A1D] hover:bg-[#F2E2E4]/50"
                 >
@@ -171,7 +289,7 @@ export default function Navbar() {
                   <span>Dashboard</span>
                 </Link>
                 <Link
-                  href={getProfileSettingsRoute()}
+                  href={profileSettingsRoute}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#1F1A1D] hover:bg-[#F2E2E4]/50"
                 >
@@ -179,6 +297,7 @@ export default function Navbar() {
                   <span>Profile Settings</span>
                 </Link>
                 <button
+                  type="button"
                   onClick={handleMobileLogout}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50"
                 >
