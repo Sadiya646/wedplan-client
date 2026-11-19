@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X, Loader2 } from "lucide-react";
-import { signIn, authClient } from "@/lib/auth-client";
+import { signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 type Role = "customer" | "vendor" | "admin";
@@ -59,46 +59,44 @@ export default function SignInPage() {
 
     setLoading(true);
     try {
-      const { error } = await signIn.email({
+      const res = await signIn.email({
         email: cleanEmail,
         password,
       });
 
-      if (error) {
-        toast.error(error.message || "Invalid email or password");
-        setLoading(false);
+      if (res.error) {
+        toast.error(res.error.message || "Invalid email or password");
         return;
       }
 
-      const sessionRes = await authClient.getSession();
-      const user = sessionRes.data?.user as
+      const signedInUser = res.data?.user as
         | { email?: string; role?: string; isBlocked?: boolean }
         | undefined;
 
-      if (user?.isBlocked) {
-        await authClient.signOut();
+      if (signedInUser?.isBlocked) {
         toast.error("Your account has been blocked by an administrator.");
-        setLoading(false);
         return;
       }
 
-      // First check session role, otherwise fetch directly from MongoDB user collection
       const validSessionRole =
-        user?.role === "admin" ||
-        user?.role === "vendor" ||
-        user?.role === "customer"
-          ? user.role
+        signedInUser?.role === "admin" ||
+        signedInUser?.role === "vendor" ||
+        signedInUser?.role === "customer"
+          ? signedInUser.role
           : null;
 
       const finalRole =
         validSessionRole ||
-        (await fetchUserRoleFromDB(user?.email || cleanEmail));
+        (await fetchUserRoleFromDB(signedInUser?.email || cleanEmail));
 
       toast.success("Welcome back to WedPlan!");
       router.push(getDashboardPath(finalRole));
       router.refresh();
-    } catch {
-      toast.error("Sign in failed. Please try again.");
+    } catch (err) {
+      console.error("Sign in error:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Sign in failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
