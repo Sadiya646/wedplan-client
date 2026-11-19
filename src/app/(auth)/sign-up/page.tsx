@@ -3,15 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Upload, Loader2 } from "lucide-react";
-import { signUp, signIn } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { X, Upload, Loader2 } from "lucide-react";
+import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 export default function SignUpPage() {
   const router = useRouter();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,24 +18,41 @@ export default function SignUpPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const hasMinLength = password.length >= 6;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+
   const uploadToImgBB = async (file: File): Promise<string> => {
+    const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+    if (!apiKey) throw new Error("ImgBB API key is missing in .env.local");
+
     const formData = new FormData();
     formData.append("image", file);
-    const res = await fetch(
-      `https://api.imgbb.com/1/upload?key=${process.env.NEXT_PUBLIC_IMGBB_API_KEY}`,
-      { method: "POST", body: formData }
-    );
+
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+      method: "POST",
+      body: formData,
+    });
+
     const data = await res.json();
-    if (!data.success) throw new Error("Image upload failed");
+    if (!data?.success || !data?.data?.url) {
+      throw new Error("Profile image upload failed");
+    }
     return data.data.url;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Password Validation (Min 6 chars, 1 uppercase, 1 lowercase)
-    if (password.length < 6 || !/[A-Z]/.test(password) || !/[a-z]/.test(password)) {
-      toast.error("Password must be at least 6 characters with 1 uppercase & 1 lowercase letter.");
+    if (!hasMinLength || !hasUppercase || !hasLowercase) {
+      toast.error(
+        "Password must be at least 6 characters with 1 uppercase and 1 lowercase letter."
+      );
+      return;
+    }
+
+    if (role === "vendor" && !businessName.trim()) {
+      toast.error("Please enter your business name for Vendor registration.");
       return;
     }
 
@@ -49,17 +64,17 @@ export default function SignUpPage() {
       }
 
       const { error } = await signUp.email({
-        email,
+        email: email.trim(),
         password,
-        name,
+        name: name.trim(),
         image: imageUrl || undefined,
         // @ts-expect-error custom fields configured in Better Auth
         role,
-        businessName: role === "vendor" ? businessName : "",
+        businessName: role === "vendor" ? businessName.trim() : "",
       });
 
       if (error) {
-        toast.error(error.message || "Registration failed");
+        toast.error(error.message || "Registration failed. Please try again.");
         setLoading(false);
         return;
       }
@@ -74,109 +89,211 @@ export default function SignUpPage() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    await signIn.social({
-      provider: "google",
-      callbackURL: `${window.location.origin}/`,
-    });
-  };
-
   return (
-    <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl border border-[#E6DCD2] bg-white p-8 shadow-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#1F1A1D]/55 px-4 py-8 backdrop-blur-sm">
+      <div className="relative my-auto w-full max-w-[440px] rounded-[28px] border border-[#E6DCD2] bg-[#FAF7F2] px-8 py-9 shadow-2xl">
+        {/* Top-right Close Button */}
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          aria-label="Close"
+          className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-[#E6DCD2] bg-[#F5EFE6] text-[#6B5E62] transition hover:border-[#C59B47] hover:text-[#1F1A1D]"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* Header */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#5E1929] text-[#C59B47]">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <h1 className="font-serif text-2xl font-bold text-[#5E1929]">Create Your Account</h1>
-          <p className="mt-1 text-sm text-[#6B5E62]">Join WedPlan as a couple or wedding vendor</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#C59B47]">
+            JOIN WEDPLAN
+          </p>
+          <h1 className="mt-1 font-serif text-[32px] font-bold leading-tight text-[#1F1A1D]">
+            Create Your Account
+          </h1>
+          <p className="mt-2 text-xs leading-relaxed text-[#6B5E62]">
+            Select Customer or Vendor role. Admin accounts cannot be publicly
+            registered.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Full Name */}
           <div>
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
+            <label
+              htmlFor="fullName"
+              className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
+            >
+              FULL NAME *
+            </label>
+            <input
+              id="fullName"
+              type="text"
               required
-              placeholder="Sadiya Tasnim"
+              placeholder="Sophia Laurent"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 border-[#E6DCD2]"
+              className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#FCFBF9] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#A69A9E] focus:border-[#5E1929] focus:outline-none"
             />
           </div>
 
+          {/* Email Address */}
           <div>
-            <Label htmlFor="email">Email Address</Label>
-            <Input
+            <label
+              htmlFor="email"
+              className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
+            >
+              EMAIL ADDRESS *
+            </label>
+            <input
               id="email"
               type="email"
               required
-              placeholder="you@example.com"
+              placeholder="sophia@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 border-[#E6DCD2]"
+              className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#FCFBF9] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#A69A9E] focus:border-[#5E1929] focus:outline-none"
             />
           </div>
 
+          {/* Password */}
           <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
+            <label
+              htmlFor="password"
+              className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
+            >
+              PASSWORD *
+            </label>
+            <input
               id="password"
               type="password"
               required
               placeholder="Min 6 chars, 1 Uppercase, 1 Lowercase"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 border-[#E6DCD2]"
+              className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#FCFBF9] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#A69A9E] focus:border-[#5E1929] focus:outline-none"
             />
-          </div>
-
-          {/* Account Role Selection */}
-          <div>
-            <Label>Account Role</Label>
-            <div className="mt-1 grid grid-cols-2 gap-3">
-              {(["customer", "vendor"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={`rounded-lg border py-2 text-sm font-medium capitalize transition ${
-                    role === r
-                      ? "border-[#5E1929] bg-[#5E1929] text-[#FAF7F2]"
-                      : "border-[#E6DCD2] bg-[#FAF7F2] text-[#1F1A1D] hover:border-[#C59B47]"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+              <span
+                className={
+                  hasMinLength
+                    ? "font-medium text-emerald-700"
+                    : "text-[#6B5E62]"
+                }
+              >
+                • 6+ chars
+              </span>
+              <span
+                className={
+                  hasUppercase
+                    ? "font-medium text-emerald-700"
+                    : "text-[#6B5E62]"
+                }
+              >
+                • 1 Uppercase
+              </span>
+              <span
+                className={
+                  hasLowercase
+                    ? "font-medium text-emerald-700"
+                    : "text-[#6B5E62]"
+                }
+              >
+                • 1 Lowercase
+              </span>
             </div>
           </div>
 
+          {/* Account Role */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]">
+              ACCOUNT ROLE *
+            </label>
+            <div className="mt-1.5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole("customer")}
+                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left text-xs font-semibold transition ${
+                  role === "customer"
+                    ? "border-[#5E1929] bg-[#FDF6F7] text-[#1F1A1D]"
+                    : "border-[#E2D6C8] bg-[#FCFBF9] text-[#1F1A1D] hover:border-[#C59B47]"
+                }`}
+              >
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                    role === "customer"
+                      ? "border-[#5E1929]"
+                      : "border-[#9C8F93]"
+                  }`}
+                >
+                  {role === "customer" && (
+                    <span className="h-2 w-2 rounded-full bg-[#5E1929]" />
+                  )}
+                </span>
+                <span>Customer (Couple)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole("vendor")}
+                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left text-xs font-semibold transition ${
+                  role === "vendor"
+                    ? "border-[#5E1929] bg-[#FDF6F7] text-[#1F1A1D]"
+                    : "border-[#E2D6C8] bg-[#FCFBF9] text-[#1F1A1D] hover:border-[#C59B47]"
+                }`}
+              >
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                    role === "vendor"
+                      ? "border-[#5E1929]"
+                      : "border-[#9C8F93]"
+                  }`}
+                >
+                  {role === "vendor" && (
+                    <span className="h-2 w-2 rounded-full bg-[#5E1929]" />
+                  )}
+                </span>
+                <span>Vendor (Business)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Vendor Business Name */}
           {role === "vendor" && (
             <div>
-              <Label htmlFor="businessName">Business / Brand Name</Label>
-              <Input
+              <label
+                htmlFor="businessName"
+                className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
+              >
+                BUSINESS NAME *
+              </label>
+              <input
                 id="businessName"
+                type="text"
                 required
-                placeholder="Royal Orchid Events"
+                placeholder="Atelier Lumiere Studio"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="mt-1 border-[#E6DCD2]"
+                className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#FCFBF9] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#A69A9E] focus:border-[#5E1929] focus:outline-none"
               />
             </div>
           )}
 
-          {/* Optional Profile Image */}
+          {/* Optional Profile Image via ImgBB */}
           <div>
-            <Label htmlFor="profileImage">Profile Image (Optional)</Label>
             <label
               htmlFor="profileImage"
-              className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[#C59B47] bg-[#FAF7F2] px-3 py-2 text-sm text-[#6B5E62] hover:bg-[#F2E2E4]/30"
+              className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
             >
-              <Upload className="h-4 w-4 text-[#5E1929]" />
+              PROFILE IMAGE (OPTIONAL)
+            </label>
+            <label
+              htmlFor="profileImage"
+              className="mt-1.5 flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-[#D8CBB8] bg-[#FCFBF9] px-4 py-2.5 text-xs text-[#6B5E62] transition hover:border-[#C59B47]"
+            >
               <span className="truncate">
-                {imageFile ? imageFile.name : "Choose image file..."}
+                {imageFile ? imageFile.name : "Upload profile photo (ImgBB)"}
               </span>
+              <Upload className="h-4 w-4 shrink-0 text-[#5E1929]" />
             </label>
             <input
               id="profileImage"
@@ -187,34 +304,24 @@ export default function SignUpPage() {
             />
           </div>
 
-          <Button
+          {/* Submit Button */}
+          <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[#5E1929] text-[#FAF7F2] hover:bg-[#47111E]"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5E1929] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#46111E] disabled:opacity-60"
           >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {loading ? "Creating Account..." : "Sign Up"}
-          </Button>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span>{loading ? "Creating Account..." : "Register Account"}</span>
+          </button>
         </form>
 
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#E6DCD2]" />
-          <span className="text-xs uppercase text-[#6B5E62]">or</span>
-          <div className="h-px flex-1 bg-[#E6DCD2]" />
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleGoogleSignUp}
-          className="w-full rounded-full border-[#E6DCD2] text-[#1F1A1D] hover:bg-[#FAF7F2]"
-        >
-          Continue with Google
-        </Button>
-
-        <p className="mt-5 text-center text-sm text-[#6B5E62]">
-          Already have an account?{" "}
-          <Link href="/sign-in" className="font-semibold text-[#5E1929] hover:underline">
+        {/* Sign In Link */}
+        <p className="mt-6 text-center text-xs text-[#6B5E62]">
+          Already registered?{" "}
+          <Link
+            href="/sign-in"
+            className="font-semibold text-[#5E1929] hover:underline"
+          >
             Sign In
           </Link>
         </p>

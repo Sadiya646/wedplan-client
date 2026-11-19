@@ -3,25 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { signIn, authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export default function SignInPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const loginWithCredentials = async (userEmail: string, userPassword: string) => {
     setLoading(true);
-
     try {
-      const { error } = await signIn.email({ email, password });
+      const { error } = await signIn.email({
+        email: userEmail.trim(),
+        password: userPassword,
+      });
 
       if (error) {
         toast.error(error.message || "Invalid email or password");
@@ -29,9 +28,10 @@ export default function SignInPage() {
         return;
       }
 
-      // Fetch updated session to redirect by role
       const sessionRes = await authClient.getSession();
-      const user = sessionRes.data?.user as { role?: string; isBlocked?: boolean } | undefined;
+      const user = sessionRes.data?.user as
+        | { role?: string; isBlocked?: boolean }
+        | undefined;
 
       if (user?.isBlocked) {
         await authClient.signOut();
@@ -54,80 +54,188 @@ export default function SignInPage() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await loginWithCredentials(email, password);
+  };
+
   const handleGoogleSignIn = async () => {
-    await signIn.social({
-      provider: "google",
-      callbackURL: `${window.location.origin}/`,
-    });
+    try {
+      await signIn.social({
+        provider: "google",
+        callbackURL: `${window.location.origin}/`,
+      });
+    } catch {
+      toast.error("Google sign in failed. Please try again.");
+    }
+  };
+
+  // One-Click Evaluation Login helper (fills & signs in with demo accounts)
+  const handleDemoLogin = async (role: "customer" | "vendor" | "admin") => {
+    const demoAccounts = {
+      customer: {
+        email: process.env.NEXT_PUBLIC_DEMO_CUSTOMER_EMAIL || "clara.vance@example.com",
+        password: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "Demo1234",
+      },
+      vendor: {
+        email: process.env.NEXT_PUBLIC_DEMO_VENDOR_EMAIL || "julian@atelierlumiere.com",
+        password: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "Demo1234",
+      },
+      admin: {
+        email: process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL || "admin@wedplan.com",
+        password: process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD || "Admin1234",
+      },
+    };
+
+    const selected = demoAccounts[role];
+    setEmail(selected.email);
+    setPassword(selected.password);
+    await loginWithCredentials(selected.email, selected.password);
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl border border-[#E6DCD2] bg-white p-8 shadow-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#1F1A1D]/55 px-4 py-8 backdrop-blur-sm">
+      <div className="relative my-auto w-full max-w-[440px] rounded-[28px] border border-[#E6DCD2] bg-[#FAF7F2] px-8 py-9 shadow-2xl">
+        {/* Top-right Close Button */}
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          aria-label="Close"
+          className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-[#E6DCD2] bg-[#F5EFE6] text-[#6B5E62] transition hover:border-[#C59B47] hover:text-[#1F1A1D]"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* Header */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#5E1929] text-[#C59B47]">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <h1 className="font-serif text-2xl font-bold text-[#5E1929]">Welcome Back</h1>
-          <p className="mt-1 text-sm text-[#6B5E62]">Sign in to manage your wedding plans</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#C59B47]">
+            BETTER AUTH SECURITY
+          </p>
+          <h1 className="mt-1 font-serif text-[32px] font-bold leading-tight text-[#1F1A1D]">
+            Welcome Back to WedPlan
+          </h1>
+          <p className="mt-2 text-xs text-[#6B5E62]">
+            Sign in to manage wedding bookings or your vendor studio.
+          </p>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="email">Email Address</Label>
-            <Input
+            <label
+              htmlFor="email"
+              className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
+            >
+              EMAIL ADDRESS
+            </label>
+            <input
               id="email"
               type="email"
               required
-              placeholder="you@example.com"
+              placeholder="clara.vance@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 border-[#E6DCD2]"
+              className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#F7F1E7] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#9E9397] focus:border-[#5E1929] focus:bg-white focus:outline-none"
             />
           </div>
 
           <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
+            <label
+              htmlFor="password"
+              className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#3D3337]"
+            >
+              PASSWORD
+            </label>
+            <input
               id="password"
               type="password"
               required
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 border-[#E6DCD2]"
+              className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#F7F1E7] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#9E9397] focus:border-[#5E1929] focus:bg-white focus:outline-none"
             />
           </div>
 
-          <Button
+          <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[#5E1929] text-[#FAF7F2] hover:bg-[#47111E]"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5E1929] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#46111E] disabled:opacity-60"
           >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {loading ? "Signing In..." : "Sign In"}
-          </Button>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span>{loading ? "Signing In..." : "Sign In with Email"}</span>
+          </button>
         </form>
 
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#E6DCD2]" />
-          <span className="text-xs uppercase text-[#6B5E62]">or</span>
-          <div className="h-px flex-1 bg-[#E6DCD2]" />
+        {/* Google OAuth Button */}
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#E2D6C8] bg-white py-3 text-sm font-semibold text-[#1F1A1D] transition hover:border-[#C59B47] hover:bg-[#FCFBF9] disabled:opacity-60"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.3 0 6.08-1.09 8.1-2.96l-3.88-3.05c-1.1.74-2.51 1.18-4.22 1.18-3.24 0-5.99-2.19-6.97-5.13H1.02v3.14C3.05 21.2 7.24 24 12 24Z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.03 14.04c-.25-.74-.39-1.54-.39-2.36 0-.82.14-1.62.39-2.36V6.18H1.02C.37 7.47 0 8.91 0 10.45s.37 2.98 1.02 4.27l4.01-3.14Z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.75c1.79 0 3.41.62 4.68 1.82l3.51-3.51C18.07 1.19 15.3 0 12 0 7.24 0 3.05 2.8 1.02 6.82l4.01 3.14c.98-2.94 3.73-5.21 6.97-5.21Z"
+            />
+          </svg>
+          <span>Continue with Google OAuth</span>
+        </button>
+
+        {/* One-Click Evaluation Login */}
+        <div className="mt-6 border-t border-[#E6DCD2] pt-5">
+          <p className="text-center text-xs text-[#6B5E62]">
+            One-Click Evaluation Login:
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2.5">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleDemoLogin("customer")}
+              className="rounded-xl bg-[#F5E6E8] py-2.5 text-xs font-semibold text-[#5E1929] transition hover:bg-[#EDD6D9] disabled:opacity-60"
+            >
+              Customer
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleDemoLogin("vendor")}
+              className="rounded-xl bg-[#F5E6E8] py-2.5 text-xs font-semibold text-[#5E1929] transition hover:bg-[#EDD6D9] disabled:opacity-60"
+            >
+              Vendor
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleDemoLogin("admin")}
+              className="rounded-xl bg-[#1F1A1D] py-2.5 text-xs font-semibold text-[#E5B85C] transition hover:bg-[#322A2F] disabled:opacity-60"
+            >
+              Admin
+            </button>
+          </div>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleGoogleSignIn}
-          className="w-full rounded-full border-[#E6DCD2] text-[#1F1A1D] hover:bg-[#FAF7F2]"
-        >
-          Continue with Google
-        </Button>
-
-        <p className="mt-5 text-center text-sm text-[#6B5E62]">
-          New to WedPlan?{" "}
-          <Link href="/sign-up" className="font-semibold text-[#5E1929] hover:underline">
-            Create an Account
+        {/* Create Account Link */}
+        <p className="mt-6 text-center text-xs text-[#6B5E62]">
+          Don't have an account?{" "}
+          <Link
+            href="/sign-up"
+            className="font-semibold text-[#5E1929] hover:underline"
+          >
+            Create Account
           </Link>
         </p>
       </div>
