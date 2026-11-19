@@ -27,7 +27,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${jakarta.variable}`}>
+    <html
+  lang="en"
+  suppressHydrationWarning
+  className={`${playfair.variable} ${jakarta.variable}`}
+>
       <body className="bg-[#FAF7F2] font-sans text-[#1F1A1D] antialiased">
         <Navbar />
         {children}
