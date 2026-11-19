@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  LayoutGrid,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,7 +71,7 @@ function UserDropdown({ user }: { user?: AuthUser | null }) {
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         type="button"
-        className="flex items-center gap-2.5 rounded-full border border-[#E6DCD2] bg-white/80 py-1 pl-1.5 pr-3 transition hover:border-[#C59B47] focus:outline-none"
+        className="flex items-center gap-2.5 rounded-full border border-[#E6DCD2] bg-white py-1 pl-1.5 pr-3.5 transition hover:border-[#C59B47] focus:outline-none"
       >
         <span className="flex items-center gap-2.5">
           <Avatar className="h-8 w-8 border border-[#C59B47]/40">
@@ -82,8 +83,13 @@ function UserDropdown({ user }: { user?: AuthUser | null }) {
               {initials}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden max-w-[120px] truncate text-sm font-medium text-[#1F1A1D] sm:inline-block">
-            {user.name || "Member"}
+          <span className="hidden text-left sm:block">
+            <span className="block max-w-[120px] truncate text-xs font-semibold text-[#1F1A1D]">
+              {user.name || "Member"}
+            </span>
+            <span className="mt-0.5 inline-block rounded-full bg-[#F2E2E4] px-2 py-0.2 text-[9px] font-bold uppercase tracking-wider text-[#5E1929]">
+              {role}
+            </span>
           </span>
           <ChevronDown className="h-4 w-4 text-[#6B5E62]" />
         </span>
@@ -178,17 +184,24 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#E6DCD2] bg-[#FAF7F2]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-[#E6DCD2] bg-[#FAF7F2]/95 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="group flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5E1929] text-[#C59B47] shadow-sm transition-transform group-hover:scale-105">
+        {/* Brand Logo */}
+        <Link href="/" className="group flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#5E1929] text-[#E5B85C] shadow-xs transition-transform group-hover:scale-105">
             <Sparkles className="h-5 w-5" />
           </div>
-          <span className="font-serif text-2xl font-bold tracking-tight text-[#5E1929]">
-            Wed<span className="text-[#C59B47]">Plan</span>
-          </span>
+          <div>
+            <span className="block font-serif text-xl font-bold leading-none tracking-tight text-[#5E1929]">
+              WedPlan
+            </span>
+            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.22em] text-[#C59B47]">
+              CURATED WEDDINGS
+            </span>
+          </div>
         </Link>
 
+        {/* Center Nav Links */}
         <nav className="hidden md:flex md:items-center md:gap-8">
           {navLinks.map((link) => (
             <Link
@@ -208,14 +221,24 @@ export default function Navbar() {
           ))}
         </nav>
 
+        {/* Right Side: Dashboard Button + User Dropdown */}
         <div className="hidden md:flex md:items-center md:gap-3">
           {isPending ? (
             <div className="flex items-center gap-2">
-              <Skeleton className="h-9 w-20 rounded-full bg-[#E6DCD2]" />
-              <Skeleton className="h-9 w-24 rounded-full bg-[#E6DCD2]" />
+              <Skeleton className="h-10 w-28 rounded-xl bg-[#E6DCD2]" />
+              <Skeleton className="h-10 w-36 rounded-full bg-[#E6DCD2]" />
             </div>
           ) : user ? (
-            <UserDropdown user={user} />
+            <>
+              <Link
+                href={dashboardRoute}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#E7CFD3] bg-[#F5E6E8] px-4 py-2.5 text-xs font-semibold text-[#5E1929] transition hover:bg-[#EDD6D9]"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span>Dashboard</span>
+              </Link>
+              <UserDropdown user={user} />
+            </>
           ) : (
             <>
               <Link
@@ -234,6 +257,7 @@ export default function Navbar() {
           )}
         </div>
 
+        {/* Mobile Hamburger */}
         <div className="flex items-center md:hidden">
           <button
             type="button"
@@ -250,6 +274,7 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="border-t border-[#E6DCD2] bg-[#FAF7F2] px-4 pb-6 pt-4 md:hidden">
           <div className="flex flex-col space-y-3">
@@ -283,9 +308,9 @@ export default function Navbar() {
                 <Link
                   href={dashboardRoute}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#1F1A1D] hover:bg-[#F2E2E4]/50"
+                  className="flex items-center gap-2 rounded-lg bg-[#F5E6E8] px-3 py-2 text-sm font-semibold text-[#5E1929]"
                 >
-                  <LayoutDashboard className="h-4 w-4 text-[#5E1929]" />
+                  <LayoutGrid className="h-4 w-4" />
                   <span>Dashboard</span>
                 </Link>
                 <Link

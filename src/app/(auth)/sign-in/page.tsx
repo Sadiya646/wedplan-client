@@ -7,6 +7,16 @@ import { X, Loader2 } from "lucide-react";
 import { signIn, authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 
+type Role = "customer" | "vendor" | "admin";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+function getDashboardPath(role?: string) {
+  if (role === "admin") return "/dashboard/admin";
+  if (role === "vendor") return "/dashboard/vendor";
+  return "/dashboard/customer";
+}
+
 export default function SignInPage() {
   const router = useRouter();
 
@@ -14,12 +24,44 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const loginWithCredentials = async (userEmail: string, userPassword: string) => {
+  const fetchUserRoleFromDB = async (userEmail: string): Promise<Role> => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/users/role?email=${encodeURIComponent(
+          userEmail.trim()
+        )}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (
+          data?.role === "admin" ||
+          data?.role === "vendor" ||
+          data?.role === "customer"
+        ) {
+          return data.role;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+    return "customer";
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail || !password) {
+      toast.error("Please enter your email and password.");
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await signIn.email({
-        email: userEmail.trim(),
-        password: userPassword,
+        email: cleanEmail,
+        password,
       });
 
       if (error) {
@@ -30,7 +72,7 @@ export default function SignInPage() {
 
       const sessionRes = await authClient.getSession();
       const user = sessionRes.data?.user as
-        | { role?: string; isBlocked?: boolean }
+        | { email?: string; role?: string; isBlocked?: boolean }
         | undefined;
 
       if (user?.isBlocked) {
@@ -40,23 +82,26 @@ export default function SignInPage() {
         return;
       }
 
+      // First check session role, otherwise fetch directly from MongoDB user collection
+      const validSessionRole =
+        user?.role === "admin" ||
+        user?.role === "vendor" ||
+        user?.role === "customer"
+          ? user.role
+          : null;
+
+      const finalRole =
+        validSessionRole ||
+        (await fetchUserRoleFromDB(user?.email || cleanEmail));
+
       toast.success("Welcome back to WedPlan!");
-
-      if (user?.role === "admin") router.push("/dashboard/admin");
-      else if (user?.role === "vendor") router.push("/dashboard/vendor");
-      else router.push("/dashboard/customer");
-
+      router.push(getDashboardPath(finalRole));
       router.refresh();
     } catch {
       toast.error("Sign in failed. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await loginWithCredentials(email, password);
   };
 
   const handleGoogleSignIn = async () => {
@@ -68,29 +113,6 @@ export default function SignInPage() {
     } catch {
       toast.error("Google sign in failed. Please try again.");
     }
-  };
-
-  // One-Click Evaluation Login helper (fills & signs in with demo accounts)
-  const handleDemoLogin = async (role: "customer" | "vendor" | "admin") => {
-    const demoAccounts = {
-      customer: {
-        email: process.env.NEXT_PUBLIC_DEMO_CUSTOMER_EMAIL || "clara.vance@example.com",
-        password: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "Demo1234",
-      },
-      vendor: {
-        email: process.env.NEXT_PUBLIC_DEMO_VENDOR_EMAIL || "julian@atelierlumiere.com",
-        password: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "Demo1234",
-      },
-      admin: {
-        email: process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL || "admin@wedplan.com",
-        password: process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD || "Admin1234",
-      },
-    };
-
-    const selected = demoAccounts[role];
-    setEmail(selected.email);
-    setPassword(selected.password);
-    await loginWithCredentials(selected.email, selected.password);
   };
 
   return (
@@ -115,7 +137,7 @@ export default function SignInPage() {
             Welcome Back to WedPlan
           </h1>
           <p className="mt-2 text-xs text-[#6B5E62]">
-            Sign in to manage wedding bookings or your vendor studio.
+            Sign in with your registered account to access your dashboard.
           </p>
         </div>
 
@@ -132,7 +154,7 @@ export default function SignInPage() {
               id="email"
               type="email"
               required
-              placeholder="clara.vance@example.com"
+              placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-[#E2D6C8] bg-[#F7F1E7] px-4 py-3 text-sm text-[#1F1A1D] placeholder:text-[#9E9397] focus:border-[#5E1929] focus:bg-white focus:outline-none"
@@ -194,39 +216,6 @@ export default function SignInPage() {
           </svg>
           <span>Continue with Google OAuth</span>
         </button>
-
-        {/* One-Click Evaluation Login */}
-        <div className="mt-6 border-t border-[#E6DCD2] pt-5">
-          <p className="text-center text-xs text-[#6B5E62]">
-            One-Click Evaluation Login:
-          </p>
-          <div className="mt-3 grid grid-cols-3 gap-2.5">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleDemoLogin("customer")}
-              className="rounded-xl bg-[#F5E6E8] py-2.5 text-xs font-semibold text-[#5E1929] transition hover:bg-[#EDD6D9] disabled:opacity-60"
-            >
-              Customer
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleDemoLogin("vendor")}
-              className="rounded-xl bg-[#F5E6E8] py-2.5 text-xs font-semibold text-[#5E1929] transition hover:bg-[#EDD6D9] disabled:opacity-60"
-            >
-              Vendor
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleDemoLogin("admin")}
-              className="rounded-xl bg-[#1F1A1D] py-2.5 text-xs font-semibold text-[#E5B85C] transition hover:bg-[#322A2F] disabled:opacity-60"
-            >
-              Admin
-            </button>
-          </div>
-        </div>
 
         {/* Create Account Link */}
         <p className="mt-6 text-center text-xs text-[#6B5E62]">
