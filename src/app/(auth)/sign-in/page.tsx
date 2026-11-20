@@ -89,6 +89,16 @@ export default function SignInPage() {
         validSessionRole ||
         (await fetchUserRoleFromDB(signedInUser?.email || cleanEmail));
 
+        //record login activity in mongodb user collection
+
+       await fetch(`${API_BASE}/api/users/login-activity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: signedInUser?.email || cleanEmail }),
+      }).catch(() => null);
+      
+
       toast.success("Welcome back to WedPlan!");
       router.push(getDashboardPath(finalRole));
       router.refresh();
