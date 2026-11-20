@@ -11,6 +11,8 @@ interface AdminUserRow {
   role?: "customer" | "vendor" | "admin";
   businessName?: string;
   isBlocked?: boolean;
+  loginCount?: number;
+  lastLogin?: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -123,6 +125,19 @@ export default function AdminUsersPage() {
                       {u.email}
                       {u.businessName ? ` • ${u.businessName}` : ""}
                     </p>
+
+                    <p className="mt-0.5 text-[11px] text-[#8A7C81]">
+                      Logins: {u.loginCount ?? 0}
+                      {u.lastLogin
+                        ? ` • Last sign in: ${new Date(
+                            u.lastLogin
+                          ).toLocaleString()}`
+                        : " • Not signed in yet"}
+                    </p>
+
+
+
+
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
