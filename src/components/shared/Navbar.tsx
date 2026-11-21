@@ -155,10 +155,13 @@ export default function Navbar() {
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Browse Services", href: "/browse-services" },
+    { name: "Categories", href: "/#categories" },
+    { name: "How It Works", href: "/#how-it-works" },
   ];
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
+    if (href.startsWith("/#")) return false;
     return pathname.startsWith(href);
   };
 
