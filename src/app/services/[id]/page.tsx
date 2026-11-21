@@ -51,6 +51,7 @@ export default function ServiceDetailsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [bookedSuccess, setBookedSuccess] = useState(false);
 
+  // 1. Load single service details
   useEffect(() => {
     if (!serviceId) return;
 
@@ -59,10 +60,6 @@ export default function ServiceDetailsPage() {
       setLoading(true);
       try {
         const res = await fetch(`${API_BASE}/api/services/${serviceId}`);
-        if (res.status === 404 || res.status === 400) {
-          if (active) setNotFound(true);
-          return;
-        }
         if (!res.ok) {
           if (active) setNotFound(true);
           return;
@@ -84,12 +81,45 @@ export default function ServiceDetailsPage() {
     };
   }, [serviceId]);
 
+  // 2. Auto-fill saved eventDate from Customer Profile
+  useEffect(() => {
+    if (!user?.email) return;
+
+    let active = true;
+    async function fetchSavedEventDate() {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/users/profile?email=${encodeURIComponent(user!.email!)}`,
+          { credentials: "include" }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const profile = data.user || data;
+        if (active && profile?.eventDate) {
+          setEventDate((prev) => prev || profile.eventDate);
+        }
+      } catch {
+        // Optional prefill
+      }
+    }
+
+    fetchSavedEventDate();
+    return () => {
+      active = false;
+    };
+  }, [user?.email]);
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!user?.email) {
       toast.error("Please sign in first to submit a booking request.");
       router.push("/sign-in");
+      return;
+    }
+
+    if (user.role && user.role !== "customer") {
+      toast.error("Only customer accounts can request bookings.");
       return;
     }
 
@@ -109,6 +139,7 @@ export default function ServiceDetailsPage() {
         body: JSON.stringify({
           serviceId: service._id,
           serviceTitle: service.title,
+          category: service.category,
           vendorEmail: service.vendorEmail || "",
           vendorName: service.vendorName || "Verified Studio",
           customerEmail: user.email,
@@ -140,7 +171,7 @@ export default function ServiceDetailsPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Back Link */}
         <Link
-          href="/services"
+          href="/browse-services"
           className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E1929] hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -162,7 +193,7 @@ export default function ServiceDetailsPage() {
               invalid.
             </p>
             <Link
-              href="/services"
+              href="/browse-services"
               className="mt-5 inline-flex rounded-xl bg-[#5E1929] px-5 py-2.5 text-xs font-semibold text-white"
             >
               Browse Available Services
@@ -218,7 +249,7 @@ export default function ServiceDetailsPage() {
                         Starting Package:{" "}
                       </span>
                       <span className="font-serif text-lg font-bold text-[#5E1929]">
-                        ${Number(service.price || 0).toLocaleString()}
+                        ৳{Number(service.price || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -247,7 +278,8 @@ export default function ServiceDetailsPage() {
                 </h2>
                 <p className="mt-1.5 text-xs text-[#6B5E62]">
                   Send an inquiry directly to {service.vendorName || "the studio"}.
-                  No upfront payment is charged until reviewed.
+                  Once accepted, you can complete your secure payment from your
+                  dashboard.
                 </p>
 
                 {bookedSuccess ? (
@@ -272,7 +304,6 @@ export default function ServiceDetailsPage() {
                         type="button"
                         onClick={() => {
                           setBookedSuccess(false);
-                          setEventDate("");
                           setNotes("");
                         }}
                         className="rounded-xl border border-[#E6DCD2] bg-white px-4 py-2.5 text-xs font-semibold text-[#1F1A1D]"
