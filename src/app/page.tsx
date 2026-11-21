@@ -103,7 +103,7 @@ export default function HomePage() {
             {/* CTA Buttons */}
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                href="/services"
+                href="/browse-services"
                 className="inline-flex items-center gap-2 rounded-xl border border-[#8E3548]/60 bg-[#5E1929] px-6 py-3.5 text-sm font-semibold text-white shadow-md transition hover:bg-[#491220]"
               >
                 <span>Explore Wedding Services</span>
@@ -158,7 +158,7 @@ export default function HomePage() {
               return (
                 <Link
                   key={cat.name}
-                  href={`/services?category=${encodeURIComponent(cat.name)}`}
+                  href={`/browse-services?category=${encodeURIComponent(cat.name)}`}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#170D10]/70 px-4 py-3.5 text-xs font-semibold text-[#F5EFEA] backdrop-blur-xs transition hover:border-[#D6B15C]/60 hover:bg-[#241318]/85"
                 >
                   <Icon className="h-4 w-4 shrink-0 text-[#D6B15C]" />
@@ -183,7 +183,7 @@ export default function HomePage() {
           </div>
 
           <Link
-            href="/services"
+            href="/browse-services"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5E1929] hover:underline"
           >
             <span>Explore All Services</span>

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Save, UserCheck } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function CustomerProfilePage() {
+  const { data: hookSession, isPending: sessionPending } = useSession();
+
   const [userEmail, setUserEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,20 +23,28 @@ export default function CustomerProfilePage() {
 
     async function loadProfile() {
       try {
-        const sessionRes = await authClient.getSession();
-        const sessionUser = sessionRes.data?.user as
-          | { email?: string; name?: string }
-          | undefined;
+        let email = hookSession?.user?.email || "";
+        let sessionName = hookSession?.user?.name || "";
 
-        const email = sessionUser?.email || "";
         if (!email) {
-          if (active) setLoading(false);
+          const sessionRes = await authClient.getSession();
+          const fallbackUser = sessionRes?.data?.user as
+            | { email?: string; name?: string }
+            | undefined;
+          email = fallbackUser?.email || "";
+          sessionName = fallbackUser?.name || sessionName;
+        }
+
+        if (!email) {
+          if (!sessionPending && active) {
+            setLoading(false);
+          }
           return;
         }
 
         if (active) {
           setUserEmail(email);
-          setName(sessionUser?.name || "");
+          setName(sessionName);
         }
 
         const res = await fetch(
@@ -46,7 +56,7 @@ export default function CustomerProfilePage() {
           const data = await res.json();
           const dbUser = data?.user;
           if (active && dbUser) {
-            setName(dbUser.name || sessionUser?.name || "");
+            setName(dbUser.name || sessionName || "");
             setPhone(dbUser.phone || "");
             setEventLocation(dbUser.eventLocation || "");
             setEventDate(dbUser.eventDate || "");
@@ -63,7 +73,7 @@ export default function CustomerProfilePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [hookSession, sessionPending]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +127,7 @@ export default function CustomerProfilePage() {
       </div>
 
       <div className="mt-7 max-w-2xl rounded-3xl border border-[#E6DCD2] bg-white p-6 shadow-2xs sm:p-8">
-        {loading ? (
+        {loading || sessionPending ? (
           <div className="flex items-center justify-center py-12 text-sm text-[#6B5E62]">
             <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#5E1929]" />
             <span>Loading profile...</span>
