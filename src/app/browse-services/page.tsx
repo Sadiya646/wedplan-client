@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import {
   Search,
   MapPin,
@@ -36,6 +37,7 @@ const CATEGORIES = [
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 function BrowseServicesContent() {
+  const {data:session}=useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -337,12 +339,12 @@ function BrowseServicesContent() {
                     </p>
                   </div>
 
-                  <Link
-                    href={`/services/${service._id}`}
-                    className="rounded-full bg-[#5E1929] px-4 py-2 text-xs font-semibold text-[#FAF7F2] transition hover:bg-[#46111E]"
-                  >
-                    View Details
-                  </Link>
+                 <Link
+  href={session?.user ? `/services/${service._id}` : "/sign-up"}
+  className="rounded-full bg-[#5E1929] px-4 py-2 text-xs font-semibold text-[#FAF7F2] transition hover:bg-[#46111E]"
+>
+  View Details
+</Link>
                 </div>
               </article>
             ))}
