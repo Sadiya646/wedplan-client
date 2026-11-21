@@ -1,108 +1,148 @@
+"use client";
+
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { stripe } from "@/lib/stripe";
+import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-export default async function PaymentSuccessPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ session_id?: string }>;
-}) {
-  const { session_id } = await searchParams;
-  if (!session_id) redirect("/");
-
-  let session;
+async function safeJson(res: Response) {
+  const text = await res.text();
+  if (!text) return {};
   try {
-    session = await stripe.checkout.sessions.retrieve(session_id, {
-      expand: ["payment_intent", "subscription"],
-    });
+    return JSON.parse(text);
   } catch {
-    redirect("/");
+    return { error: text };
   }
+}
 
-  if (session.status !== "complete") {
-    redirect("/");
-  }
+function PaymentSuccessContent() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session_id");
 
-  const meta = session.metadata || {};
-  const transactionId =
-    typeof session.payment_intent === "string"
-      ? session.payment_intent
-      : session.payment_intent?.id || session.id;
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading"
+  );
+  const [message, setMessage] = useState("Verifying your Stripe payment...");
+  const [email, setEmail] = useState("");
 
-  const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
+  useEffect(() => {
+    if (!sessionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus("error");
+      setMessage("Missing Stripe checkout session ID.");
+      return;
+    }
 
-  // 1. If Vendor Subscription upgrade
-  if (meta.type === "subscription" && meta.userEmail) {
-    await fetch(`${API_BASE}/api/users/profile`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: meta.userEmail,
-        subscriptionPlan: "PREMIUM",
-        stripeTransactionId: transactionId,
-      }),
-    }).catch(() => {});
-  }
+    let active = true;
 
-  // 2. If Customer Booking payment
-  if (meta.type === "booking" && meta.bookingId) {
-    await fetch(`${API_BASE}/api/bookings/${meta.bookingId}/payment`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        paymentStatus: "PAID",
-        transactionId,
-        amountPaid,
-      }),
-    }).catch(() => {});
-  }
+    async function verifySession() {
+      try {
+        const res = await fetch(`${API_BASE}/api/stripe/verify-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = await safeJson(res);
+
+        if (!res.ok || !data.verified) {
+          if (active) {
+            setStatus("error");
+            setMessage(
+              data.message || data.error || "Payment was not completed."
+            );
+          }
+          return;
+        }
+
+        if (active) {
+          setEmail(data.email || "");
+          setStatus("success");
+          setMessage(
+            "Payment verified! Your Vendor Premium (Unlimited Studio Growth) plan is now active."
+          );
+        }
+      } catch (err: unknown) {
+        if (active) {
+          setStatus("error");
+          setMessage(
+            err instanceof Error ? err.message : "Failed to verify payment."
+          );
+        }
+      }
+    }
+
+    verifySession();
+    return () => {
+      active = false;
+    };
+  }, [sessionId]);
 
   return (
-    <main className="min-h-screen bg-[#FAF7F2] px-4 py-16 text-[#1F1A1D]">
-      <div className="mx-auto max-w-lg rounded-3xl border border-[#ECE2D6] bg-white p-8 text-center shadow-sm">
-        <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-          PAYMENT CONFIRMED
-        </span>
+    <div className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-4 py-12">
+      <div className="w-full rounded-3xl border border-[#ECE2D6] bg-white p-8 text-center shadow-sm">
+        {status === "loading" && (
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-10 w-10 animate-spin text-[#5E1929]" />
+            <p className="text-sm font-medium text-[#3D3337]">{message}</p>
+          </div>
+        )}
 
-        <h1 className="mt-4 font-serif text-3xl font-bold text-[#1F1A1D]">
-          Payment Successful!
-        </h1>
+        {status === "success" && (
+          <div className="flex flex-col items-center gap-3">
+            <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+            <h1 className="font-serif text-2xl font-bold text-[#1F1A1D]">
+              Payment Successful
+            </h1>
+            <p className="text-sm text-[#6B5E62]">{message}</p>
+            {email && (
+              <p className="mt-1 rounded-xl bg-[#FAF7F2] px-4 py-2 text-xs text-[#3D3337]">
+                Vendor Account: <strong>{email}</strong>
+              </p>
+            )}
+            <div className="mt-6">
+              <Link
+                href="/dashboard/vendor/subscription"
+                className="rounded-xl bg-[#1C1214] px-5 py-2.5 text-xs font-bold text-[#D6B15C] transition hover:opacity-95"
+              >
+                Go to Subscription Page
+              </Link>
+            </div>
+          </div>
+        )}
 
-        <p className="mt-2 text-xs text-[#6B5E62]">
-          {meta.type === "subscription"
-            ? "Your Vendor Premium subscription is now active. You can publish unlimited wedding packages."
-            : `Your payment for "${meta.serviceTitle || "Wedding Package"}" has been recorded.`}
-        </p>
-
-        <div className="mt-6 rounded-2xl bg-[#FAF7F2] p-4 text-left text-xs text-[#3D3337]">
-          <p>
-            <span className="font-semibold">Amount Paid:</span> ${amountPaid.toFixed(2)}
-          </p>
-          <p className="mt-1 break-all">
-            <span className="font-semibold">Transaction ID:</span> {transactionId}
-          </p>
-        </div>
-
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          {meta.type === "subscription" ? (
+        {status === "error" && (
+          <div className="flex flex-col items-center gap-3">
+            <AlertCircle className="h-12 w-12 text-red-600" />
+            <h1 className="font-serif text-2xl font-bold text-[#1F1A1D]">
+              Verification Issue
+            </h1>
+            <p className="text-sm text-red-600">{message}</p>
             <Link
               href="/dashboard/vendor/subscription"
-              className="rounded-xl bg-[#5E1929] px-5 py-3 text-xs font-semibold text-white transition hover:bg-[#46111E]"
+              className="mt-4 rounded-xl bg-[#5E1929] px-5 py-2.5 text-xs font-semibold text-white"
             >
-              Back to Subscription Plan
+              Back to Subscription
             </Link>
-          ) : (
-            <Link
-              href="/dashboard/customer/bookings"
-              className="rounded-xl bg-[#5E1929] px-5 py-3 text-xs font-semibold text-white transition hover:bg-[#46111E]"
-            >
-              View My Bookings
-            </Link>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center text-sm text-[#6B5E62]">
+          Loading payment confirmation...
+        </div>
+      }
+    >
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

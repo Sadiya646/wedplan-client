@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Crown, Sparkles, Loader2 } from "lucide-react";
+import { Check, Crown, Sparkles } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
@@ -61,7 +61,7 @@ export default function VendorSubscriptionPage() {
           setPublishedCount(mine.length);
         }
 
-        // 2. Fetch vendor profile / subscription status if available
+        // 2. Fetch vendor profile / subscription status
         const uRes = await fetch(
           `${API_BASE}/api/users/profile?email=${encoded}`,
           { credentials: "include" }
@@ -73,7 +73,11 @@ export default function VendorSubscriptionPage() {
             uData?.user?.plan ||
             "FREE"
           ).toUpperCase();
-          if (dbPlan === "PREMIUM" || dbPlan === "PRO" || dbPlan === "VENDOR_PREMIUM") {
+          if (
+            dbPlan === "PREMIUM" ||
+            dbPlan === "PRO" ||
+            dbPlan === "VENDOR_PREMIUM"
+          ) {
             setPlan("PREMIUM");
           } else {
             setPlan("FREE");
@@ -100,27 +104,25 @@ export default function VendorSubscriptionPage() {
 
     setUpgrading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/users/profile`, {
-        method: "PATCH",
+      const res = await fetch("/api/checkout_sessions", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
+          type: "subscription",
           email: vendorEmail,
-          subscriptionPlan: "PREMIUM",
         }),
       });
 
-      if (res.ok) {
-        setPlan("PREMIUM");
-        toast.success("Upgraded to Unlimited Studio Growth (Vendor Premium)!");
-      } else {
-        setPlan("PREMIUM");
-        toast.info(
-          "Ready to wire real checkout! Let's connect payment gateway next to persist subscription."
-        );
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        toast.error(data.error || "Failed to start Stripe checkout.");
+        return;
       }
+
+      window.location.assign(data.url);
     } catch {
-      toast.error("Could not process upgrade right now.");
+      toast.error("Could not connect to Stripe checkout.");
     } finally {
       setUpgrading(false);
     }
@@ -154,11 +156,8 @@ export default function VendorSubscriptionPage() {
             </span>
             <span>
               {plan === "PREMIUM"
-                ? `Unlimited active (`
-                : `${Math.min(publishedCount, FREE_PACKAGE_LIMIT)} / ${FREE_PACKAGE_LIMIT} free posts used (`}
-              {plan === "PREMIUM"
-                ? `${publishedCount} published)`
-                : `${remainingFreePosts} free post${remainingFreePosts === 1 ? "" : "s"} remaining)`}
+                ? `Unlimited active (${publishedCount} published)`
+                : `${Math.min(publishedCount, FREE_PACKAGE_LIMIT)} / ${FREE_PACKAGE_LIMIT} free posts used (${remainingFreePosts} free post${remainingFreePosts === 1 ? "" : "s"} remaining)`}
             </span>
           </div>
 
@@ -198,21 +197,21 @@ export default function VendorSubscriptionPage() {
             </div>
 
             <p className="mt-2.5 border-b border-[#F1E9DF] pb-5 text-xs text-[#6B5E62]">
-              Ideal for studios getting started on WedPlan[cite: 10].
+              Ideal for studios getting started on WedPlan.
             </p>
 
             <ul className="mt-6 space-y-3.5 text-xs text-[#251319] sm:text-sm">
               <li className="flex items-center gap-3">
                 <Check className="h-4 w-4 shrink-0 text-[#5E1929]" />
-                <span>Up to 3 active wedding service packages[cite: 10]</span>
+                <span>Up to 3 active wedding service packages</span>
               </li>
               <li className="flex items-center gap-3">
                 <Check className="h-4 w-4 shrink-0 text-[#5E1929]" />
-                <span>Receive & manage couple booking requests[cite: 10]</span>
+                <span>Receive & manage couple booking requests</span>
               </li>
               <li className="flex items-center gap-3">
                 <Check className="h-4 w-4 shrink-0 text-[#5E1929]" />
-                <span>Standard studio profile listing[cite: 10]</span>
+                <span>Standard studio profile listing</span>
               </li>
             </ul>
           </div>
@@ -247,21 +246,21 @@ export default function VendorSubscriptionPage() {
 
             <p className="mt-2.5 border-b border-white/10 pb-5 text-xs leading-relaxed text-[#B8AEB1]">
               For established wedding venues, studios, and planners scaling
-              bookings[cite: 10].
+              bookings.
             </p>
 
             <ul className="mt-6 space-y-3.5 text-xs text-[#E8E0E2] sm:text-sm">
               <li className="flex items-center gap-3">
                 <Sparkles className="h-4 w-4 shrink-0 text-[#D6B15C]" />
-                <span>Publish unlimited wedding service packages[cite: 10]</span>
+                <span>Publish unlimited wedding service packages</span>
               </li>
               <li className="flex items-center gap-3">
                 <Sparkles className="h-4 w-4 shrink-0 text-[#D6B15C]" />
-                <span>Verified Premium Studio badge[cite: 10]</span>
+                <span>Verified Premium Studio badge</span>
               </li>
               <li className="flex items-center gap-3">
                 <Sparkles className="h-4 w-4 shrink-0 text-[#D6B15C]" />
-                <span>Boosted visibility in search & featured listings[cite: 10]</span>
+                <span>Boosted visibility in search & featured listings</span>
               </li>
             </ul>
           </div>
@@ -275,7 +274,7 @@ export default function VendorSubscriptionPage() {
             {plan === "PREMIUM"
               ? "Premium Active"
               : upgrading
-              ? "Upgrading..."
+              ? "Redirecting to Stripe..."
               : "Upgrade to Vendor Premium"}
           </button>
         </div>
