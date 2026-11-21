@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Sparkles, Users, CalendarCheck } from "lucide-react";
+import { LayoutGrid, Sparkles, Users, CalendarCheck, Receipt } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import RoleGuard from "@/components/shared/RoleGuard";
@@ -16,6 +16,11 @@ const adminNav = [
     href: "/dashboard/admin/bookings",
     icon: CalendarCheck,
   },
+  {
+  label: "Transactions",
+  href: "/dashboard/admin/transactions",
+  icon: Receipt, // lucide-react theke import korben
+}
 ];
 
 export default function AdminDashboardLayout({
