@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -144,7 +144,7 @@ function UserDropdown({ user }: { user?: AuthUser | null }) {
   );
 }
 
-export default function Navbar() {
+function NavbarContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -189,7 +189,6 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[#E6DCD2] bg-[#FAF7F2]/95 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Brand Logo */}
         <Link href="/" className="group flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#5E1929] text-[#E5B85C] shadow-xs transition-transform group-hover:scale-105">
             <Sparkles className="h-5 w-5" />
@@ -204,7 +203,6 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Center Nav Links */}
         <nav className="hidden md:flex md:items-center md:gap-8">
           {navLinks.map((link) => (
             <Link
@@ -224,7 +222,6 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Right Side: Dashboard Button + User Dropdown */}
         <div className="hidden md:flex md:items-center md:gap-3">
           {isPending ? (
             <div className="flex items-center gap-2">
@@ -260,7 +257,6 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Hamburger */}
         <div className="flex items-center md:hidden">
           <button
             type="button"
@@ -277,7 +273,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="border-t border-[#E6DCD2] bg-[#FAF7F2] px-4 pb-6 pt-4 md:hidden">
           <div className="flex flex-col space-y-3">
@@ -355,5 +350,17 @@ export default function Navbar() {
         </div>
       )}
     </header>
+  );
+}
+
+export default function Navbar() {
+  return (
+    <Suspense
+      fallback={
+        <header className="sticky top-0 z-50 h-20 w-full border-b border-[#E6DCD2] bg-[#FAF7F2]/95" />
+      }
+    >
+      <NavbarContent />
+    </Suspense>
   );
 }
