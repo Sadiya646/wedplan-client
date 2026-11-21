@@ -17,7 +17,7 @@ const adminNav = [
     icon: CalendarCheck,
   },
   {
-  label: "Transactions",
+  name: "Transactions",
   href: "/dashboard/admin/transactions",
   icon: Receipt, // lucide-react theke import korben
 }
