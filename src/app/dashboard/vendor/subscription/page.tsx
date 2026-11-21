@@ -1,96 +1,218 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Crown, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Crown, Sparkles, Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
+interface VendorServiceItem {
+  _id: string;
+  vendorEmail?: string;
+  status?: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const FREE_PACKAGE_LIMIT = 3;
 
 export default function VendorSubscriptionPage() {
-  const { data: session } = useSession();
-  const user = session?.user as
-    | { email?: string | null; plan?: string | null }
-    | undefined;
+  const { data: session, isPending: sessionPending } = useSession();
+  const vendorEmail = session?.user?.email;
 
-  const [currentPlan, setCurrentPlan] = useState<"FREE" | "PREMIUM">(
-    user?.plan === "PREMIUM" ? "PREMIUM" : "FREE"
-  );
+  const [publishedCount, setPublishedCount] = useState<number>(0);
+  const [plan, setPlan] = useState<"FREE" | "PREMIUM">("FREE");
+  const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
 
-  const handleUpgradePlan = async () => {
+  useEffect(() => {
+    if (!vendorEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (!sessionPending) setLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    async function loadVendorPlanAndUsage() {
+      setLoading(true);
+      try {
+        const encoded = encodeURIComponent(vendorEmail!);
+
+        // 1. Fetch vendor's services to calculate free slot usage (up to 3 free)
+        let sRes = await fetch(
+          `${API_BASE}/api/services?vendorEmail=${encoded}`,
+          { credentials: "include" }
+        );
+        if (!sRes.ok) {
+          sRes = await fetch(`${API_BASE}/api/services`, {
+            credentials: "include",
+          });
+        }
+
+        if (sRes.ok && active) {
+          const sData = await sRes.json();
+          const allList: VendorServiceItem[] = Array.isArray(sData)
+            ? sData
+            : sData.services || [];
+          const mine = allList.filter(
+            (item) =>
+              !item.vendorEmail ||
+              item.vendorEmail.toLowerCase() === vendorEmail!.toLowerCase()
+          );
+          setPublishedCount(mine.length);
+        }
+
+        // 2. Fetch vendor profile / subscription status if available
+        const uRes = await fetch(
+          `${API_BASE}/api/users/profile?email=${encoded}`,
+          { credentials: "include" }
+        );
+        if (uRes.ok && active) {
+          const uData = await uRes.json();
+          const dbPlan = (
+            uData?.user?.subscriptionPlan ||
+            uData?.user?.plan ||
+            "FREE"
+          ).toUpperCase();
+          if (dbPlan === "PREMIUM" || dbPlan === "PRO" || dbPlan === "VENDOR_PREMIUM") {
+            setPlan("PREMIUM");
+          } else {
+            setPlan("FREE");
+          }
+        }
+      } catch {
+        // Keep defaults on error
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadVendorPlanAndUsage();
+    return () => {
+      active = false;
+    };
+  }, [vendorEmail, sessionPending]);
+
+  const handleUpgrade = async () => {
+    if (!vendorEmail) {
+      toast.error("Please sign in to upgrade your subscription.");
+      return;
+    }
+
     setUpgrading(true);
     try {
-      if (user?.email) {
-        await fetch(`${API_BASE}/api/users/plan`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email: user.email, plan: "PREMIUM" }),
-        }).catch(() => null);
-      }
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: vendorEmail,
+          subscriptionPlan: "PREMIUM",
+        }),
+      });
 
-      setCurrentPlan("PREMIUM");
-      toast.success("Upgraded to WedPlan Vendor Premium!");
+      if (res.ok) {
+        setPlan("PREMIUM");
+        toast.success("Upgraded to Unlimited Studio Growth (Vendor Premium)!");
+      } else {
+        setPlan("PREMIUM");
+        toast.info(
+          "Ready to wire real checkout! Let's connect payment gateway next to persist subscription."
+        );
+      }
     } catch {
-      toast.error("Could not complete upgrade right now.");
+      toast.error("Could not process upgrade right now.");
     } finally {
       setUpgrading(false);
     }
   };
 
+  const remainingFreePosts = Math.max(0, FREE_PACKAGE_LIMIT - publishedCount);
+  const limitReached = plan === "FREE" && publishedCount >= FREE_PACKAGE_LIMIT;
+
   return (
     <div>
+      {/* Header */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#C59B47]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#B88D2F]">
           STUDIO MEMBERSHIP
         </p>
-        <h1 className="mt-1 font-serif text-3xl font-bold text-[#1F1A1D] sm:text-4xl">
+        <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight text-[#1F1A1D] sm:text-4xl">
           Vendor Subscription Plans
         </h1>
-        <p className="mt-1.5 text-sm text-[#6B5E62]">
+        <p className="mt-1 text-xs text-[#6B5E62] sm:text-sm">
           Start free with up to 3 wedding packages or unlock unlimited listings
           and priority placement.
         </p>
       </div>
 
+      {/* Live Free Post Usage Banner */}
+      {!loading && !sessionPending && (
+        <div className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-[#ECE2D6] bg-white px-5 py-4 sm:flex-row sm:items-center">
+          <div className="text-xs text-[#3D3337]">
+            <span className="font-semibold text-[#5E1929]">
+              Free Listing Usage:{" "}
+            </span>
+            <span>
+              {plan === "PREMIUM"
+                ? `Unlimited active (`
+                : `${Math.min(publishedCount, FREE_PACKAGE_LIMIT)} / ${FREE_PACKAGE_LIMIT} free posts used (`}
+              {plan === "PREMIUM"
+                ? `${publishedCount} published)`
+                : `${remainingFreePosts} free post${remainingFreePosts === 1 ? "" : "s"} remaining)`}
+            </span>
+          </div>
+
+          {limitReached && (
+            <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold text-amber-800">
+              Free 3-post limit reached — upgrade to post more
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Two Plan Cards */}
       <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Free Plan Card */}
-        <div className="flex flex-col justify-between rounded-3xl border border-[#E6DCD2] bg-white p-7 shadow-2xs">
+        {/* Left: Free Plan Card */}
+        <div className="flex flex-col justify-between rounded-3xl border border-[#ECE2D6] bg-white p-7 shadow-[0_2px_12px_rgba(31,26,29,0.02)] sm:p-8">
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="font-serif text-2xl font-bold text-[#1F1A1D]">
                 Free Plan
               </h2>
-              {currentPlan === "FREE" && (
-                <span className="rounded-full bg-[#F5E6E8] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5E1929]">
-                  CURRENT PLAN
-                </span>
-              )}
+              <span
+                className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                  plan === "FREE"
+                    ? "bg-[#F5E6E8] text-[#5E1929]"
+                    : "bg-[#F3ECE2] text-[#6B5E62]"
+                }`}
+              >
+                {plan === "FREE" ? "CURRENT PLAN" : "FREE TIER"}
+              </span>
             </div>
 
-            <p className="mt-3 font-serif text-3xl font-bold text-[#1F1A1D]">
-              $0{" "}
-              <span className="font-sans text-xs font-normal text-[#6B5E62]">
-                / forever
+            <div className="mt-4 flex items-baseline gap-1.5">
+              <span className="font-serif text-4xl font-bold text-[#1F1A1D]">
+                $0
               </span>
-            </p>
-            <p className="mt-2 text-xs text-[#6B5E62]">
-              Ideal for studios getting started on WedPlan.
+              <span className="text-xs text-[#6B5E62]">/forever</span>
+            </div>
+
+            <p className="mt-2.5 border-b border-[#F1E9DF] pb-5 text-xs text-[#6B5E62]">
+              Ideal for studios getting started on WedPlan[cite: 10].
             </p>
 
-            <ul className="mt-6 space-y-3 border-t border-[#EFE7DE] pt-5 text-sm text-[#1F1A1D]">
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#5E1929]" />
-                <span>Up to 3 active wedding service packages</span>
+            <ul className="mt-6 space-y-3.5 text-xs text-[#251319] sm:text-sm">
+              <li className="flex items-center gap-3">
+                <Check className="h-4 w-4 shrink-0 text-[#5E1929]" />
+                <span>Up to 3 active wedding service packages[cite: 10]</span>
               </li>
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#5E1929]" />
-                <span>Receive & manage couple booking requests</span>
+              <li className="flex items-center gap-3">
+                <Check className="h-4 w-4 shrink-0 text-[#5E1929]" />
+                <span>Receive & manage couple booking requests[cite: 10]</span>
               </li>
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#5E1929]" />
-                <span>Standard studio profile listing</span>
+              <li className="flex items-center gap-3">
+                <Check className="h-4 w-4 shrink-0 text-[#5E1929]" />
+                <span>Standard studio profile listing[cite: 10]</span>
               </li>
             </ul>
           </div>
@@ -98,65 +220,60 @@ export default function VendorSubscriptionPage() {
           <button
             type="button"
             disabled
-            className="mt-8 w-full rounded-xl border border-[#E6DCD2] bg-[#FAF7F2] py-3 text-xs font-semibold text-[#6B5E62]"
+            className="mt-8 w-full cursor-not-allowed rounded-xl border border-[#ECE2D6] bg-[#FAF7F2] py-3.5 text-xs font-semibold text-[#8E8185]"
           >
-            {currentPlan === "FREE" ? "Active Plan" : "Starter Tier"}
+            {plan === "FREE" ? "Active Plan" : "Included in Account"}
           </button>
         </div>
 
-        {/* Premium Plan Card */}
-        <div className="flex flex-col justify-between rounded-3xl border border-[#C59B47]/50 bg-[#1C1414] p-7 text-white shadow-sm">
+        {/* Right: Dark Premium Plan Card */}
+        <div className="flex flex-col justify-between rounded-3xl bg-[#1C1214] p-7 text-[#FAF7F2] shadow-lg sm:p-8">
           <div>
-            <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[#E5B85C]">
-                <Crown className="h-4 w-4" />
-                <span>VENDOR PREMIUM</span>
-              </span>
-              {currentPlan === "PREMIUM" && (
-                <span className="rounded-full bg-[#C89D3C]/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#E5B85C]">
-                  ACTIVE
-                </span>
-              )}
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#D6B15C]">
+              <Crown className="h-3.5 w-3.5" />
+              <span>VENDOR PREMIUM</span>
             </div>
 
-            <h2 className="mt-2 font-serif text-2xl font-bold text-white">
+            <h2 className="mt-2.5 font-serif text-2xl font-bold text-white sm:text-3xl">
               Unlimited Studio Growth
             </h2>
-            <p className="mt-3 font-serif text-3xl font-bold text-[#E5B85C]">
-              $29{" "}
-              <span className="font-sans text-xs font-normal text-[#CFC4C7]">
-                / month
+
+            <div className="mt-4 flex items-baseline gap-1.5">
+              <span className="font-serif text-4xl font-bold text-[#D6B15C]">
+                $29
               </span>
-            </p>
-            <p className="mt-2 text-xs text-[#CFC4C7]">
+              <span className="text-xs text-[#B8AEB1]">/month</span>
+            </div>
+
+            <p className="mt-2.5 border-b border-white/10 pb-5 text-xs leading-relaxed text-[#B8AEB1]">
               For established wedding venues, studios, and planners scaling
-              bookings.
+              bookings[cite: 10].
             </p>
 
-            <ul className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm text-[#F5EFEA]">
-              <li className="flex items-center gap-2.5">
-                <Sparkles className="h-4 w-4 text-[#E5B85C]" />
-                <span>Publish unlimited wedding service packages</span>
+            <ul className="mt-6 space-y-3.5 text-xs text-[#E8E0E2] sm:text-sm">
+              <li className="flex items-center gap-3">
+                <Sparkles className="h-4 w-4 shrink-0 text-[#D6B15C]" />
+                <span>Publish unlimited wedding service packages[cite: 10]</span>
               </li>
-              <li className="flex items-center gap-2.5">
-                <Sparkles className="h-4 w-4 text-[#E5B85C]" />
-                <span>Verified Premium Studio badge</span>
+              <li className="flex items-center gap-3">
+                <Sparkles className="h-4 w-4 shrink-0 text-[#D6B15C]" />
+                <span>Verified Premium Studio badge[cite: 10]</span>
               </li>
-              <li className="flex items-center gap-2.5">
-                <Sparkles className="h-4 w-4 text-[#E5B85C]" />
-                <span>Boosted visibility in search & featured listings</span>
+              <li className="flex items-center gap-3">
+                <Sparkles className="h-4 w-4 shrink-0 text-[#D6B15C]" />
+                <span>Boosted visibility in search & featured listings[cite: 10]</span>
               </li>
             </ul>
           </div>
 
           <button
             type="button"
-            disabled={upgrading || currentPlan === "PREMIUM"}
-            onClick={handleUpgradePlan}
-            className="mt-8 w-full rounded-xl bg-[#C89D3C] py-3.5 text-xs font-bold text-[#1F1A1D] transition hover:bg-[#B88D2F] disabled:opacity-60"
+            disabled={upgrading || plan === "PREMIUM"}
+            onClick={handleUpgrade}
+            className="mt-8 w-full rounded-xl bg-[#C99B3B] py-3.5 text-xs font-bold text-[#1A0D11] shadow-sm transition hover:bg-[#D6A949] disabled:opacity-60"
           >
-            {currentPlan === "PREMIUM"
-              ? "Premium Plan Active"
+            {plan === "PREMIUM"
+              ? "Premium Active"
               : upgrading
               ? "Upgrading..."
               : "Upgrade to Vendor Premium"}

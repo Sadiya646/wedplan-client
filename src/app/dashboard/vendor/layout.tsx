@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -43,11 +44,7 @@ const vendorNav = [
   },
 ];
 
-export default function VendorDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function VendorDashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isNewServiceMode = searchParams.get("new") === "1";
@@ -139,5 +136,23 @@ export default function VendorDashboardLayout({
         </div>
       </div>
     </RoleGuard>
+  );
+}
+
+export default function VendorDashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[calc(100vh-80px)] bg-[#FAF7F2] p-10 text-center text-sm text-[#6B5E62]">
+          Loading vendor workspace...
+        </div>
+      }
+    >
+      <VendorDashboardShell>{children}</VendorDashboardShell>
+    </Suspense>
   );
 }
