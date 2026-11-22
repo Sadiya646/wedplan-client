@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MapPin, Trash2, Search, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { authFetch } from "@/lib/auth-fetch";
 
 type ServiceStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -34,9 +35,7 @@ export default function AdminAllServicesPage() {
 
     async function fetchServices() {
       try {
-        const res = await fetch(`${API_BASE}/api/admin/services`, {
-          credentials: "include",
-        });
+        const res = await authFetch(`${API_BASE}/api/admin/services`);
         if (!res.ok) {
           if (active) setServices([]);
           return;
@@ -61,10 +60,9 @@ export default function AdminAllServicesPage() {
   const handleStatusChange = async (id: string, nextStatus: ServiceStatus) => {
     setUpdatingId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/services/${id}/status`, {
+      const res = await authFetch(`${API_BASE}/api/admin/services/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ status: nextStatus }),
       });
 
@@ -89,9 +87,8 @@ export default function AdminAllServicesPage() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/services/${id}`, {
+      const res = await authFetch(`${API_BASE}/api/services/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!res.ok) {
         toast.error("Failed to remove service");

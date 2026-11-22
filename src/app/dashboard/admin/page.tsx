@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, Sparkles, CalendarCheck, CheckCircle2 } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface AdminUser {
   _id: string;
@@ -40,9 +41,9 @@ export default function AdminDashboardPage() {
     async function loadAdminOverview() {
       try {
         const [usersRes, servicesRes, bookingsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/admin/users`, { credentials: "include" }),
-          fetch(`${API_BASE}/api/services`, { credentials: "include" }),
-          fetch(`${API_BASE}/api/admin/bookings`, { credentials: "include" }),
+          authFetch(`${API_BASE}/api/admin/users`),
+          authFetch(`${API_BASE}/api/services`),
+          authFetch(`${API_BASE}/api/admin/bookings`),
         ]);
 
         if (active) {

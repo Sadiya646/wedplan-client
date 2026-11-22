@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Calendar, Users } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface AdminBookingRow {
   _id: string;
@@ -26,9 +27,7 @@ export default function AdminBookingsPage() {
 
     async function fetchAllBookings() {
       try {
-        const res = await fetch(`${API_BASE}/api/admin/bookings`, {
-          credentials: "include",
-        });
+        const res = await authFetch(`${API_BASE}/api/admin/bookings`);
         if (!res.ok) {
           if (active) setBookings([]);
           return;

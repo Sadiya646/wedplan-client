@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Receipt, CheckCircle2, Search, AlertCircle } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface TransactionItem {
   _id: string;
@@ -30,9 +31,7 @@ export default function AdminTransactionsPage() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`${API_BASE}/api/admin/transactions`, {
-          credentials: "include",
-        });
+        const res = await authFetch(`${API_BASE}/api/admin/transactions`);
 
         if (!res.ok) {
           throw new Error("Failed to load transactions from server.");
