@@ -11,6 +11,7 @@ export const auth = betterAuth({
   trustedOrigins: [
     "http://localhost:3000",
     "https://wedplan-client-coral.vercel.app",
+    "https://*.vercel.app",
   ],
   database: mongodbAdapter(db),
   emailAndPassword: {

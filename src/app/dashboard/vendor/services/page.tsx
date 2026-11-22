@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Pencil,
@@ -37,6 +37,7 @@ const CATEGORIES = [
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function VendorServicesPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const user = session?.user as
@@ -120,10 +121,20 @@ export default function VendorServicesPage() {
     setImage("");
     setEditingService(null);
     setShowForm(false);
+
+    if (searchParams.get("new") === "1") {
+      router.replace("/dashboard/vendor/services");
+    }
   };
 
   const openCreateForm = () => {
-    resetForm();
+    setTitle("");
+    setCategory(CATEGORIES[0]);
+    setLocation("");
+    setPrice("");
+    setSummary("");
+    setImage("");
+    setEditingService(null);
     setShowForm(true);
   };
 
@@ -464,8 +475,7 @@ export default function VendorServicesPage() {
               No services added yet
             </p>
             <p className="mx-auto mt-1.5 max-w-md text-xs text-[#6B5E62]">
-              Click “Add Service” to publish your first wedding
-              package.
+              Click “Add Service” to publish your first wedding package.
             </p>
           </div>
         ) : (
