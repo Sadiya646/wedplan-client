@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X, Upload, Loader2 } from "lucide-react";
-import { signUp } from "@/lib/auth-client";
+import { signIn, signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 export default function SignUpPage() {
@@ -80,11 +80,26 @@ export default function SignUpPage() {
       }
 
       toast.success("Account created successfully!");
-      router.push(role === "vendor" ? "/dashboard/vendor" : "/dashboard/customer");
+      router.push(
+        role === "vendor" ? "/dashboard/vendor" : "/dashboard/customer"
+      );
       router.refresh();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    try {
+      await signIn.social({
+        provider: "google",
+        callbackURL: `${window.location.origin}/dashboard`,
+      });
+    } catch {
+      toast.error("Google sign up failed. Please try again.");
       setLoading(false);
     }
   };
@@ -314,6 +329,34 @@ export default function SignUpPage() {
             <span>{loading ? "Creating Account..." : "Register Account"}</span>
           </button>
         </form>
+
+        {/* Google OAuth Button */}
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          disabled={loading}
+          className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#E2D6C8] bg-white py-3 text-sm font-semibold text-[#1F1A1D] transition hover:border-[#C59B47] hover:bg-[#FCFBF9] disabled:opacity-60"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.3 0 6.08-1.09 8.1-2.96l-3.88-3.05c-1.1.74-2.51 1.18-4.22 1.18-3.24 0-5.99-2.19-6.97-5.13H1.02v3.14C3.05 21.2 7.24 24 12 24Z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.03 14.04c-.25-.74-.39-1.54-.39-2.36 0-.82.14-1.62.39-2.36V6.18H1.02C.37 7.47 0 8.91 0 10.45s.37 2.98 1.02 4.27l4.01-3.14Z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.75c1.79 0 3.41.62 4.68 1.82l3.51-3.51C18.07 1.19 15.3 0 12 0 7.24 0 3.05 2.8 1.02 6.82l4.01 3.14c.98-2.94 3.73-5.21 6.97-5.21Z"
+            />
+          </svg>
+          <span>Continue with Google</span>
+        </button>
 
         {/* Sign In Link */}
         <p className="mt-6 text-center text-xs text-[#6B5E62]">
