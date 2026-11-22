@@ -24,6 +24,8 @@ interface ServiceItem {
   image?: string;
   vendorName?: string;
   vendorEmail?: string;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+  isAvailable?: boolean;
 }
 
 const CATEGORIES = [
@@ -53,6 +55,7 @@ export default function VendorServicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(
@@ -253,13 +256,45 @@ export default function VendorServicesPage() {
         }
 
         setServices((prev) => [data.service, ...prev]);
-        toast.success("Service published to marketplace");
+        toast.success("Service submitted for admin approval");
         resetForm();
       }
     } catch {
       toast.error("Something went wrong while saving service");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleToggleAvailability = async (item: ServiceItem) => {
+    const nextState = item.isAvailable === false ? true : false;
+    setTogglingId(item._id);
+    try {
+      const res = await fetch(`${API_BASE}/api/services/${item._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ isAvailable: nextState }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message || "Failed to update availability");
+        return;
+      }
+
+      setServices((prev) =>
+        prev.map((s) =>
+          s._id === item._id ? { ...s, isAvailable: nextState } : s
+        )
+      );
+      toast.success(
+        nextState ? "Service marked as Available" : "Service marked as Unavailable"
+      );
+    } catch {
+      toast.error("Failed to update availability");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -502,6 +537,17 @@ export default function VendorServicesPage() {
                       <span className="rounded-full bg-[#F2E2E4] px-2.5 py-0.5 text-[10px] font-bold text-[#5E1929]">
                         {item.category}
                       </span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                          item.status === "APPROVED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : item.status === "REJECTED"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {item.status || "PENDING"}
+                      </span>
                     </div>
 
                     {item.summary && (
@@ -522,7 +568,24 @@ export default function VendorServicesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={togglingId === item._id}
+                    onClick={() => handleToggleAvailability(item)}
+                    className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition disabled:opacity-60 ${
+                      item.isAvailable === false
+                        ? "border-zinc-300 bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {togglingId === item._id
+                      ? "Updating..."
+                      : item.isAvailable === false
+                      ? "Unavailable"
+                      : "Available"}
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => openEditForm(item)}
