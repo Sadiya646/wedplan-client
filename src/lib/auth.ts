@@ -6,6 +6,12 @@ const client = new MongoClient(process.env.BETTER_AUTH_DB_URI!);
 const db = client.db(process.env.MONGODB_DB_NAME || "wedplan");
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  secret: process.env.BETTER_AUTH_SECRET,
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://wedplan-client-coral.vercel.app",
+  ],
   database: mongodbAdapter(db),
   emailAndPassword: {
     enabled: true,
