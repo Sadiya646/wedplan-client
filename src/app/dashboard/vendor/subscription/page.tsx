@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Crown, Sparkles } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface VendorServiceItem {
   _id: string;
@@ -37,15 +38,10 @@ export default function VendorSubscriptionPage() {
       try {
         const encoded = encodeURIComponent(vendorEmail!);
 
-        // 1. Fetch vendor's services to calculate free slot usage (up to 3 free)
-        let sRes = await fetch(
-          `${API_BASE}/api/services?vendorEmail=${encoded}`,
-          { credentials: "include" }
-        );
+        // 1. Fetch public services to calculate free slot usage (up to 3 free)
+        let sRes = await fetch(`${API_BASE}/api/services?vendorEmail=${encoded}`);
         if (!sRes.ok) {
-          sRes = await fetch(`${API_BASE}/api/services`, {
-            credentials: "include",
-          });
+          sRes = await fetch(`${API_BASE}/api/services`);
         }
 
         if (sRes.ok && active) {
@@ -61,10 +57,9 @@ export default function VendorSubscriptionPage() {
           setPublishedCount(mine.length);
         }
 
-        // 2. Fetch vendor profile / subscription status
-        const uRes = await fetch(
-          `${API_BASE}/api/users/profile?email=${encoded}`,
-          { credentials: "include" }
+        // 2. Fetch protected vendor profile / subscription status
+        const uRes = await authFetch(
+          `${API_BASE}/api/users/profile?email=${encoded}`
         );
         if (uRes.ok && active) {
           const uData = await uRes.json();
