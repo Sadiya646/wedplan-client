@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, MapPin, Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface CustomerBooking {
   _id: string;
@@ -43,15 +44,9 @@ export default function CustomerBookingsPage() {
       setLoading(true);
       try {
         const encoded = encodeURIComponent(userEmail!);
-        let res = await fetch(`${API_BASE}/api/bookings/customer?email=${encoded}`, {
-          credentials: "include",
-        });
-
-        if (res.status === 404) {
-          res = await fetch(`${API_BASE}/api/bookings?customerEmail=${encoded}`, {
-            credentials: "include",
-          });
-        }
+        const res = await authFetch(
+          `${API_BASE}/api/bookings/customer?email=${encoded}`
+        );
 
         if (!res.ok) {
           if (active) setBookings([]);
@@ -63,17 +58,27 @@ export default function CustomerBookingsPage() {
           ? data
           : data.bookings || [];
 
-        // Enrich missing serviceImage & location from /api/services
-        const serviceMap = new Map<string, { image?: string; location?: string }>();
+        // Enrich missing serviceImage & location from public /api/services
+        const serviceMap = new Map<
+          string,
+          { image?: string; location?: string }
+        >();
         if (rawList.some((b) => !b.serviceImage && !b.image && b.serviceId)) {
           try {
             const sRes = await fetch(`${API_BASE}/api/services`);
             if (sRes.ok) {
               const sData = await sRes.json();
-              const sList = Array.isArray(sData) ? sData : sData.services || [];
-              sList.forEach((s: { _id: string; image?: string; location?: string }) => {
-                serviceMap.set(s._id, { image: s.image, location: s.location });
-              });
+              const sList = Array.isArray(sData)
+                ? sData
+                : sData.services || [];
+              sList.forEach(
+                (s: { _id: string; image?: string; location?: string }) => {
+                  serviceMap.set(s._id, {
+                    image: s.image,
+                    location: s.location,
+                  });
+                }
+              );
             }
           } catch {
             // Optional enrichment
@@ -81,7 +86,9 @@ export default function CustomerBookingsPage() {
         }
 
         const enriched = rawList.map((b) => {
-          const matched = b.serviceId ? serviceMap.get(b.serviceId) : undefined;
+          const matched = b.serviceId
+            ? serviceMap.get(b.serviceId)
+            : undefined;
           return {
             ...b,
             serviceImage: b.serviceImage || b.image || matched?.image,
@@ -106,12 +113,14 @@ export default function CustomerBookingsPage() {
   const handleCancelRequest = async (bookingId: string) => {
     setCancellingId(bookingId);
     try {
-      const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status: "CANCELLED" }),
-      });
+      const res = await authFetch(
+        `${API_BASE}/api/bookings/${bookingId}/cancel`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "CANCELLED" }),
+        }
+      );
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
