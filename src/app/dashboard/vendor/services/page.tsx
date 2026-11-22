@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface ServiceItem {
   _id: string;
@@ -88,11 +89,10 @@ export default function VendorServicesPage() {
 
     async function loadVendorServices() {
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `${API_BASE}/api/services/vendor?email=${encodeURIComponent(
             user!.email!
-          )}`,
-          { credentials: "include" }
+          )}`
         );
         if (!res.ok) {
           if (active) setServices([]);
@@ -204,12 +204,11 @@ export default function VendorServicesPage() {
     setSubmitting(true);
     try {
       if (editingService) {
-        const res = await fetch(
+        const res = await authFetch(
           `${API_BASE}/api/services/${editingService._id}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({
               title: title.trim(),
               category,
@@ -233,10 +232,9 @@ export default function VendorServicesPage() {
         toast.success("Service updated successfully");
         resetForm();
       } else {
-        const res = await fetch(`${API_BASE}/api/services`, {
+        const res = await authFetch(`${API_BASE}/api/services`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             title: title.trim(),
             category,
@@ -270,10 +268,9 @@ export default function VendorServicesPage() {
     const nextState = item.isAvailable === false ? true : false;
     setTogglingId(item._id);
     try {
-      const res = await fetch(`${API_BASE}/api/services/${item._id}`, {
+      const res = await authFetch(`${API_BASE}/api/services/${item._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ isAvailable: nextState }),
       });
 
@@ -301,9 +298,8 @@ export default function VendorServicesPage() {
   const handleDeleteService = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/services/${id}`, {
+      const res = await authFetch(`${API_BASE}/api/services/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
 
       const data = await res.json();

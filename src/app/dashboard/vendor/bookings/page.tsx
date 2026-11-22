@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface VendorBooking {
   _id: string;
@@ -42,17 +43,9 @@ export default function VendorBookingsPage() {
       setLoading(true);
       try {
         const encoded = encodeURIComponent(vendorEmail!);
-        let res = await fetch(
-          `${API_BASE}/api/bookings/vendor?email=${encoded}`,
-          { credentials: "include" }
+        const res = await authFetch(
+          `${API_BASE}/api/bookings/vendor?email=${encoded}`
         );
-
-        if (res.status === 404) {
-          res = await fetch(
-            `${API_BASE}/api/bookings?vendorEmail=${encoded}`,
-            { credentials: "include" }
-          );
-        }
 
         if (!res.ok) {
           if (active) setBookings([]);
@@ -64,14 +57,16 @@ export default function VendorBookingsPage() {
           ? data
           : data.bookings || [];
 
-        // Enrich missing location from /api/services
+        // Enrich missing location from public /api/services
         const locationMap = new Map<string, string>();
         if (rawList.some((b) => !b.location && b.serviceId)) {
           try {
             const sRes = await fetch(`${API_BASE}/api/services`);
             if (sRes.ok) {
               const sData = await sRes.json();
-              const sList = Array.isArray(sData) ? sData : sData.services || [];
+              const sList = Array.isArray(sData)
+                ? sData
+                : sData.services || [];
               sList.forEach((s: { _id: string; location?: string }) => {
                 if (s.location) locationMap.set(s._id, s.location);
               });
@@ -83,7 +78,8 @@ export default function VendorBookingsPage() {
 
         const enriched = rawList.map((b) => ({
           ...b,
-          location: b.location || (b.serviceId ? locationMap.get(b.serviceId) : ""),
+          location:
+            b.location || (b.serviceId ? locationMap.get(b.serviceId) : ""),
         }));
 
         if (active) setBookings(enriched);
@@ -106,12 +102,14 @@ export default function VendorBookingsPage() {
   ) => {
     setUpdatingId(bookingId);
     try {
-      const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status: decision }),
-      });
+      const res = await authFetch(
+        `${API_BASE}/api/bookings/${bookingId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: decision }),
+        }
+      );
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
