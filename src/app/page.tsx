@@ -563,7 +563,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-8 flex flex-col justify-between gap-2 border-t border-white/10 pt-6 text-[11px] text-[#8E8185] sm:flex-row">
-            <p>© {new Date().getFullYear()} WedPlan. All rights reserved.</p>
+            <p>© 2026 WedPlan. All rights reserved.</p>
             <p>Crafted for timeless celebrations.</p>
           </div>
         </div>
