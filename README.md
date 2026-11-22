@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WedPlan Client — Wedding Planning Platform Frontend
 
-## Getting Started
+WedPlan Client is the frontend web application for **WedPlan**, a role-based wedding planning and vendor marketplace platform built with Next.js App Router and TypeScript. It provides dedicated interfaces for customers to discover and book wedding services, vendors to manage services, bookings, and subscriptions, and admins to oversee users, listings, and platform transactions.
 
-First, run the development server:
+## Important Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Home & Browse Services:** Wedding-themed hero banner, featured approved/active services, service category exploration, search and filtering, Framer Motion animations, and loading/empty states.
+- **Service Details & Booking Requests:** Dynamic `/services/[id]` view with booking form, customer authentication flow, and guardrails against self-booking or duplicate active bookings on the same service and date.
+- **Authentication & Role Dashboards:** Better Auth email/password and Google OAuth flows, ImgBB profile image uploads, role-aware navigation, and separate Customer, Vendor, and Admin dashboards with profile management.
+- **Stripe Subscription & Payment Flows:** Vendor Premium upgrade checkout integration along with `/payment-success` and `/payment-cancel` views.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Technology Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework & Language:** Next.js (App Router), TypeScript, React
+- **Styling & UI:** Tailwind CSS, ShadCN UI / HeroUI, Framer Motion / Motion, Lucide React, Sonner
+- **Authentication & APIs:** Better Auth client, JWT bearer token sync (`authFetch`), Stripe Checkout client/route integration, ImgBB API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Installation Instructions
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Clone the client repository:
+   ```bash
+   git clone https://github.com/Sadiya646/wedplan-client.git
+2. Clone the server repository:
+   ```bash
+   git clone https://github.com/Sadiya646/wedplan-server.git
