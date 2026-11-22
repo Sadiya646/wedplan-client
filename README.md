@@ -25,6 +25,13 @@ WedPlan is a full-stack, role-based wedding planning and vendor marketplace web 
 2. Clone the server repository:
    ```bash
    git clone https://github.com/Sadiya646/wedplan-server.git
+## How to Run the Project Locally
+
+1. clone clinet repository and Start the  (`wedplan-client`):
+   ```bash
+   cd wedplan-client
+   npm run dev
+
 ## Live Link
 ```bash
 wedplan-client-coral.vercel.app
